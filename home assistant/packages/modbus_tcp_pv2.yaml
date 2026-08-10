@@ -4,9 +4,9 @@
 
 modbus:
   - name: PV2
-    type: tcp 
+    type: tcp
     host: 10.10.30.218 ## or create !secret inverter_ip with ip adress
-    port: 502 
+    port: 502
     delay: 5
     message_wait_milliseconds: 600
     timeout: 5
@@ -14,6 +14,7 @@ modbus:
     sensors:
       - name: PV2 Actual
         unique_id: pv2_actual
+        scan_interval: 10
         unit_of_measurement: W
         slave: 3
         address: 30775
@@ -24,6 +25,7 @@ modbus:
         state_class: measurement
       - name: PV2 Daily
         unique_id: pv2_daily
+        scan_interval: 300
         unit_of_measurement: kWh
         scale: 0.001
         precision: 2
@@ -35,18 +37,27 @@ modbus:
         state_class: total_increasing
       - name: PV2 Total
         unique_id: pv2_total
-        unit_of_measurement: kWh
+        scan_interval: 300
+        unit_of_measurement: MWh
         slave: 3
-        address: 30531
+        # 30529 = Total yield in Wh (U32). The U64 register 30513 returned a
+        # bogus near-constant value (~1e10) on this inverter, so we read the
+        # U32 register instead. Scale 0.000001 converts Wh -> MWh. nan_value
+        # filters the max-value reading SMA inverters report while asleep.
+        address: 30529
         input_type: input
-        scale: 0.001
-        precision: 2
-        data_type: int32
+        scale: 0.000001
+        # precision 4 = 0.1 kWh resolution; at precision 2 the value only
+        # ticked every 0.01 MWh (10 kWh), starving the daily/yearly meters.
+        precision: 4
+        data_type: uint32
+        nan_value: 4294967295
         min_value: 0
         device_class: energy
         state_class: total_increasing
       - name: PV2 AC Voltage
         unique_id: pv2_ac_voltage
+        scan_interval: 60
         unit_of_measurement: V
         slave: 3
         address: 30783
@@ -59,6 +70,7 @@ modbus:
         state_class: measurement
       - name: PV2 AC Frequency
         unique_id: pv2_ac_frequency
+        scan_interval: 60
         unit_of_measurement: Hz
         slave: 3
         address: 30803
@@ -71,6 +83,7 @@ modbus:
         state_class: measurement
       - name: PV2 DC Voltage 1
         unique_id: pv2_dc_voltage_1
+        scan_interval: 60
         unit_of_measurement: V
         slave: 3
         address: 30771
@@ -83,6 +96,7 @@ modbus:
         state_class: measurement
       - name: PV2 DC Current 1
         unique_id: pv2_dc_current_1
+        scan_interval: 60
         unit_of_measurement: A
         slave: 3
         address: 30769
@@ -95,6 +109,7 @@ modbus:
         state_class: measurement
       - name: PV2 DC Power 1
         unique_id: pv2_dc_power_1
+        scan_interval: 15
         unit_of_measurement: W
         slave: 3
         address: 30773
@@ -105,6 +120,7 @@ modbus:
         state_class: measurement
       - name: PV2 DC Voltage 2
         unique_id: pv2_dc_voltage_2
+        scan_interval: 60
         unit_of_measurement: V
         slave: 3
         address: 30959
@@ -117,6 +133,7 @@ modbus:
         state_class: measurement
       - name: PV2 DC Current 2
         unique_id: pv2_dc_current_2
+        scan_interval: 60
         unit_of_measurement: A
         slave: 3
         address: 30957
@@ -129,6 +146,7 @@ modbus:
         state_class: measurement
       - name: PV2 DC Power 2
         unique_id: pv2_dc_power_2
+        scan_interval: 15
         unit_of_measurement: W
         slave: 3
         address: 30961
@@ -139,6 +157,7 @@ modbus:
         state_class: measurement
       - name: PV2 temperature
         unique_id: pv2_temperature
+        scan_interval: 300
         unit_of_measurement: °C
         slave: 3
         address: 30953
@@ -151,6 +170,7 @@ modbus:
         state_class: measurement
       - name: PV2 isolatieweerstand
         unique_id: pv2_isolatieweerstand
+        scan_interval: 300
         unit_of_measurement: Ohm
         slave: 3
         address: 30225
@@ -159,10 +179,11 @@ modbus:
         precision: 0
         data_type: int32
         min_value: 0
-##        device_class: resistance
+        ##        device_class: resistance
         state_class: measurement
       - name: PV2 aardlekkage
         unique_id: pv2_aardlekkage
+        scan_interval: 300
         unit_of_measurement: A
         slave: 3
         address: 31247
@@ -175,16 +196,19 @@ modbus:
         state_class: measurement
       - name: PV2 status
         unique_id: pv2_status
+        scan_interval: 300
         slave: 3
         address: 30201
         data_type: int32
       - name: PV2 grid
         unique_id: pv2_grid
+        scan_interval: 300
         slave: 3
         address: 30217
         data_type: uint32
       - name: PV2 limit percent
         unique_id: pv2_limit_percent
+        scan_interval: 60
         unit_of_measurement: "%"
         slave: 3
         address: 41255
@@ -198,40 +222,40 @@ modbus:
 sensor:
   - platform: template
     sensors:
-      pv_power:      
-        friendly_name: 'PV2 Power'
+      pv2_power:
+        friendly_name: "PV2 Power"
         value_template: >-
-            {% if states('sensor.pv2_actual')|float < 0 or states('sensor.pv2_actual')|float > 10000 %}
-              0
-            {% else %}
-              {{ states('sensor.pv2_actual') }}
-            {% endif %}
+          {% if states('sensor.pv2_actual')|float < 0 or states('sensor.pv2_actual')|float > 10000 %}
+            0
+          {% else %}
+            {{ states('sensor.pv2_actual') }}
+          {% endif %}
         unit_of_measurement: "W"
         icon_template: mdi:flash
         unique_id: pv2_power
- 
+
   - platform: template
     sensors:
-      pv_energie_vandaag:      
-        friendly_name: 'PV2 Energy Daily'
+      pv2_energie_vandaag:
+        friendly_name: "PV2 Energy Daily"
         value_template: >-
-            {% if states('sensor.pv2_daily')|float < 0 or states('sensor.pv2_vandaag')|float > 10000 %}
-              0
-            {% else %}
-              {{ states('sensor.pv2_daily') }}
-            {% endif %}
+          {% if states('sensor.pv2_daily')|float(0) < 0 or states('sensor.pv2_daily')|float(0) > 10000 %}
+            0
+          {% else %}
+            {{ states('sensor.pv2_daily') }}
+          {% endif %}
         unit_of_measurement: "kWh"
         icon_template: mdi:weather-sunny
         unique_id: pv2_energie_vandaag
 
-      pv_grid_contactor:        
-        friendly_name: 'PV2 Grid relais'
+      pv2_grid_contactor:
+        friendly_name: "PV2 Grid relais"
         value_template: >-
-            {% if is_state('sensor.pv2_grid', '51' ) %}
-              Closed
-            {% else %}
-              Open
-            {% endif %}
+          {% if is_state('sensor.pv2_grid', '51' ) %}
+            Closed
+          {% else %}
+            Open
+          {% endif %}
         icon_template: mdi:connection
         unique_id: pv2_grid_connector
 
@@ -253,7 +277,7 @@ template:
         min: 0
         max: 100
         optimistic: true
-        
+
   - sensor:
       - name: "PV2 Inverter Status"
         unique_id: pv2_inverter_status
@@ -270,3 +294,29 @@ template:
             Unknown
           {% endif %}
         icon: mdi:state-machine
+
+      # Guarded lifetime total. Modbus can read 0 on inverter wake-up; a dip on
+      # a total_increasing sensor is booked by the statistics engine as a meter
+      # reset, inflating daily/yearly energy. This wrapper never decreases.
+      - name: "PV2 Total Production"
+        unique_id: pv2_total_production
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        availability: >
+          {{ has_value('sensor.pv2_total') }}
+        state: >
+          {% set prev = this.state | float(0) %}
+          {# pv2_total is in MWh (register 30529 in Wh, scale 0.000001);
+             convert to kWh here so the value matches unit_of_measurement.
+             2026-07-22: this fixes the yearly/daily PV meters undercounting
+             by a factor 1000 (they were fed MWh numbers labeled kWh). #}
+          {% set new = states('sensor.pv2_total') | float(0) * 1000 %}
+          {# Accept increases only: rejects wake-up dips to 0 and other bad
+             reads. (The old ~1000x-downshift acceptance for the kWh->MWh
+             scale correction is intentionally removed.) #}
+          {% if new >= prev %}
+            {{ new | round(1) }}
+          {% else %}
+            {{ prev }}
+          {% endif %}
