@@ -1,0 +1,287 @@
+# yaml-language-server: $schema=http://schemas.home-assistant.io/configuration
+# This file contains the core entities of the PV Limiter.
+# It should be included in the main configuration.yaml file as a `package` via `!include_dir_named` https://www.home-assistant.io/docs/configuration/packages/.
+# v1.0
+# Optimize stop and go behavior
+input_number:
+  pv_step_size:
+    name: "PV Step Size"
+    min: 1
+    max: 25
+    initial: 1
+    step: 1
+    unit_of_measurement: "%"
+    mode: box
+    icon: mdi:debug-step-over
+
+  pv_p1_deadband:
+    name: "Dead Band"
+    min: 0
+    max: 500
+    step: 5
+    unit_of_measurement: "W"
+    mode: box
+    icon: mdi:numeric
+
+command_line:
+# Detect whether the PV1 and/or PV2 modbus package file is present.
+  - sensor:
+      name: "PV Inverters"
+      unique_id: pv_inverters
+      command: >-
+        if test -f /config/packages/pv_sunnyboy_modbus_pv2.yaml; then echo 2;
+        elif test -f /config/packages/pv_sunnyboy_modbus_pv1.yaml; then echo 1;
+        else echo 0; fi
+      scan_interval: 3600
+      icon: mdi:numeric
+
+# PV Booleans
+input_boolean:
+  pv_limiter:
+    name: "PV Limiter"
+    icon: mdi:toggle
+
+  pv_logging:
+    name: "PV Logging"
+    icon: mdi:toggle
+    
+  pv_notifications:
+    name: "PV Notifications"
+    icon: mdi:toggle
+
+# Strategy PV Limiter switched away from when it went to Charge (cheap band), so it can
+# restore exactly that one afterwards. Empty = PV Limiter has not changed the strategy.
+# Written/cleared by Node-RED only; kept in HA so it survives Node-RED restarts.
+input_text:
+  pv_limiter_saved_strategy:
+    name: "PV Limiter saved strategy"
+    icon: mdi:backup-restore
+    max: 100
+
+# PV Limiter flow version (published from Node-RED as a retained MQTT message).
+# Retained -> the broker replays the value the instant HA reconnects, so the
+# sensor is available immediately after a restart (no /api/states gap).
+mqtt:
+  sensor:
+    - name: "PV Limiter Version"
+      unique_id: pv_limiter_version
+      state_topic: "pv_limiter/version"
+      icon: mdi:tag-outline
+
+    # Heartbeat from Node-RED (group 10, max every 5 min, retained).
+    # Older than 10 min -> flow/Node-RED not running (see packages/nodered_heartbeat.yaml).
+    - name: "PV Limiter Last run"
+      unique_id: pv_limiter_last_run
+      state_topic: "pv_limiter/heartbeat"
+      device_class: timestamp
+      entity_category: diagnostic
+      icon: mdi:heart-pulse
+
+# When two inverters are present (sensor.pv_inverters = 2)
+# the value is pv1_power + pv2_power; otherwise it is pv1_power only.
+template:
+  - sensor:
+      - name: "PV Limiter Power"
+        unique_id: pv_limiter_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {{ has_value('sensor.pv1_actual') }}
+        state: >
+          {% if is_state('sensor.pv_inverters', '2') %}
+          {{ ((states('sensor.pv1_actual') | float(0))
+            + (states('sensor.pv2_actual') | float(0))) | round(0) }}
+          {% else %}
+            {{ states('sensor.pv1_actual') | float(0) | round(0) }}
+          {% endif %}
+
+  - sensor:
+      - name: "PV Limiter Power Max"
+        unique_id: pv_limiter_power_max
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        availability: >
+          {{ has_value('sensor.pv1_actual') }}
+        state: >
+          {% if is_state('sensor.pv_inverters', '2') %}
+            {{ (states('sensor.pv1_power_max') | float(0)
+              + states('sensor.pv2_power_max') | float(0)) | round(0) }}
+          {% else %}
+            {{ states('sensor.pv1_power_max') | float(0) | round(0) }}
+          {% endif %}
+
+      # Daily yield sums the inverters' own daily registers so the Total card
+      # always equals PV1 Yield + PV2 Yield on the individual cards. Guarded
+      # against the known mid-day 0-glitch: a drop is only accepted during the
+      # 00:00 hour (the legitimate midnight reset), otherwise the previous
+      # value is held.
+      #
+      # 2026-08-09: state_class removed. The `this.state` guard below is fine
+      # for a card - it holds the last good number through a glitch - but it is
+      # NOT safe to record: `this.state` is not restored across restarts, so
+      # the reference falls back to 0 and the sensor re-seeds, and the guard
+      # latches onto bad HIGH reads until the next 00:00. With no state_class
+      # this entity writes no long-term statistics, so those steps can no
+      # longer be booked as production. Real daily accounting now lives in
+      # sensor.daily_pv1_energy / daily_pv2_energy (home_energy.yaml), built
+      # from the PV power integrals.
+      #
+      # `has_value('sensor.pv_inverters')` in availability: pv_inverters is a
+      # command_line sensor (scan_interval 3600) and is `unknown` for the first
+      # moments after a restart, which sent the state below down the PV1-only
+      # branch and halved the card.
+      - name: "PV Limiter Daily Yield"
+        unique_id: pv_limiter_daily_yield
+        unit_of_measurement: "kWh"
+        device_class: energy
+        availability: >
+          {{ has_value('sensor.pv_inverters')
+             and has_value('sensor.pv1_daily')
+             and (not is_state('sensor.pv_inverters', '2')
+                  or has_value('sensor.pv2_daily')) }}
+        state: >
+          {% set prev = this.state | float(0) %}
+          {% if is_state('sensor.pv_inverters', '2') %}
+            {% set new = (states('sensor.pv1_daily') | float(0))
+                       + (states('sensor.pv2_daily') | float(0)) %}
+          {% else %}
+            {% set new = states('sensor.pv1_daily') | float(0) %}
+          {% endif %}
+          {% if new >= prev or now().hour == 0 %}
+            {{ new | round(2) }}
+          {% else %}
+            {{ prev | round(2) }}
+          {% endif %}
+
+      # Total yield mirrors the PV1/PV2 Total gauges: it sums sensor.pv1_total
+      # and sensor.pv2_total (both natively MWh from modbus register 30529)
+      # directly, so this gauge always equals PV1 Total + PV2 Total by
+      # construction. No never-decrease guard (those can latch stale values
+      # after a scale correction); instead the availability check masks the
+      # inverter wake-up 0-reads, so a dip can never be booked as a meter
+      # reset by the statistics engine.
+      #
+      # 2026-08-09: state_class removed as well. Availability masking stops the
+      # wake-up dips, but it cannot stop everything a cumulative register can
+      # do - a garbled modbus frame, a counter rollover, an inverter swap - and
+      # on a `total_increasing` sensor every one of those becomes phantom
+      # production in long-term statistics. This is a gauge; it mirrors the
+      # PV1/PV2 Total cards and feeds no meter, so it has no reason to record.
+      - name: "PV Limiter Total Yield"
+        unique_id: pv_limiter_total_yield
+        unit_of_measurement: "MWh"
+        device_class: energy
+        availability: >
+          {% if is_state('sensor.pv_inverters', '2') %}
+            {{ (states('sensor.pv1_total') | float(0)) > 0
+               and (states('sensor.pv2_total') | float(0)) > 0 }}
+          {% else %}
+            {{ has_value('sensor.pv_inverters')
+               and (states('sensor.pv1_total') | float(0)) > 0 }}
+          {% endif %}
+        state: >
+          {% if is_state('sensor.pv_inverters', '2') %}
+            {{ ((states('sensor.pv1_total') | float(0))
+              + (states('sensor.pv2_total') | float(0))) | round(2) }}
+          {% else %}
+            {{ states('sensor.pv1_total') | float(0) | round(2) }}
+          {% endif %}
+
+      - name: "PV Limiter PV1 Percentage"
+        unique_id: pv_limiter_pv1_percentage
+        unit_of_measurement: "%"
+        state_class: measurement
+        state: >
+            {% set power = states('sensor.pv1_actual') | float(0) %}
+            {% set max_w = 2835 %}
+            {% set percentage = (power / max_w) * 100 %}
+            {{ percentage | round(1) }}
+
+      - name: "PV Limiter PV2 Percentage"
+        unique_id: pv_limiter_pv2_percentage
+        unit_of_measurement: "%"
+        state_class: measurement
+        state: >
+            {% set power = states('sensor.pv2_actual') | float(0) %}
+            {% set max_w = 2835 %}
+            {% set percentage = (power / max_w) * 100 %}
+            {{ percentage | round(1) }}
+
+      - name: "PV Limiter Percentage"
+        unique_id: pv_limiter_percentage
+        unit_of_measurement: "%"
+        state_class: measurement
+        availability: >
+            {{ has_value('sensor.pv_limiter_power') }}
+        state: >
+            {% set power = states('sensor.pv_limiter_power') | float(0) %}
+            {% set max_w = 5670 if is_state('sensor.pv_inverters','2') else 2835 %}
+            {{ (power / max_w * 100) | round(1) if max_w > 0 else 0 }}
+
+      - name: "PV Limiter Slider"
+        unique_id: pv_limiter_slider
+        unit_of_measurement: "%"
+        state_class: measurement
+        availability: >
+            {% if is_state('sensor.pv_inverters', '2') %}
+            {{ has_value('number.pv1_power_limit_slider')
+                and has_value('number.pv2_power_limit_slider') }}
+            {% else %}
+            {{ has_value('number.pv1_power_limit_slider') }}
+            {% endif %}
+        state: >
+            {% if is_state('sensor.pv_inverters', '2') %}
+            {% set values = [
+                states('number.pv1_power_limit_slider') | float(0),
+                states('number.pv2_power_limit_slider') | float(0)
+            ] %}
+            {{ ((values | sum) / (values | count)) | round(1) }}
+            {% else %}
+                {{ states('number.pv1_power_limit_slider') | float(0) | round(1) }}
+            {% endif %}
+
+  - trigger:
+      - platform: state
+        entity_id: sensor.pv1_actual
+        id: update
+      - platform: time
+        at: "00:00:00"
+        id: reset
+    sensor:
+      - name: "PV1 Power Max"
+        unique_id: pv1_power_max
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% if trigger.id == 'reset' %}
+            0
+          {% else %}
+            {% set current = states('sensor.pv1_actual') | float(0) %}
+            {% set previous = this.state | float(0) %}
+            {{ [current, previous] | max | round(0) }}
+          {% endif %}
+
+  - trigger:
+      - platform: state
+        entity_id: sensor.pv2_actual
+        id: update
+      - platform: time
+        at: "00:00:00"
+        id: reset
+    sensor:
+      - name: "PV2 Power Max"
+        unique_id: pv2_power_max
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        state: >
+          {% if trigger.id == 'reset' %}
+            0
+          {% else %}
+            {% set current = states('sensor.pv2_actual') | float(0) %}
+            {% set previous = this.state | float(0) %}
+            {{ [current, previous] | max | round(0) }}
+          {% endif %}

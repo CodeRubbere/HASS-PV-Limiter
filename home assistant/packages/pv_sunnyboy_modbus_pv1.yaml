@@ -1,0 +1,368 @@
+## PV inverter logging modbus TCP/IP
+#
+# Revision: v1.0 2026/06/16
+
+modbus:
+  - name: PV1
+    type: tcp
+    host: 10.10.30.223 ## or create !secret inverter_ip with ip adress
+    port: 502
+    delay: 5
+    message_wait_milliseconds: 600
+    timeout: 5
+
+    sensors:
+      - name: PV1 Actual
+        unique_id: pv1_actual
+        scan_interval: 10
+        unit_of_measurement: W
+        slave: 3
+        address: 30775
+        input_type: input
+        data_type: int32
+        min_value: 0
+        device_class: power
+        state_class: measurement
+      # 2026-08-09: state_class removed from both counters below. They are raw
+      # modbus reads of the inverter's own registers and they feed gauges only
+      # - the daily/yearly PV meters run off sensor.pv1_energy_integral
+      # (home_energy.yaml). A `total_increasing` cumulative register turns
+      # every dropped frame, wake-up 0-read and counter rollover into phantom
+      # production in long-term statistics, which is what put a 130 MWh
+      # year-to-date on the Solar badge. No state_class = no statistics = no
+      # phantom. The values on the cards are unchanged.
+      - name: PV1 Daily
+        unique_id: pv1_daily
+        scan_interval: 300
+        unit_of_measurement: kWh
+        scale: 0.001
+        precision: 2
+        slave: 3
+        address: 30517
+        data_type: int64
+        min_value: 0
+        device_class: energy
+      - name: PV1 Total
+        unique_id: pv1_total
+        # 2026-08-11: 300 -> 30. This register drives the PV segment of
+        # custom:energy-balance-card via sensor.pv1_total_production, and that
+        # card's live fast path can only step when the source state actually
+        # changes. At a 5 minute poll the PV figure sat frozen next to the Home
+        # and Grid segments, which are fed by integration sensors ticking every
+        # few seconds. A 2-register read per inverter every 30s is negligible
+        # against the rest of the traffic on this hub.
+        scan_interval: 30
+        unit_of_measurement: MWh
+        slave: 3
+        # 30529 = Total yield in Wh (U32). The U64 register 30513 returned a
+        # bogus near-constant value (~1e10) on this inverter, so we read the
+        # U32 register instead. Scale 0.000001 converts Wh -> MWh. nan_value
+        # filters the max-value reading SMA inverters report while asleep.
+        address: 30529
+        input_type: input
+        scale: 0.000001
+        # 2026-08-11: precision 4 -> 6. The register is natively in Wh, so with
+        # scale 0.000001 a precision of 6 exposes its full 1 Wh resolution.
+        # precision 4 rounded to 0.0001 MWh = 0.1 kWh, which at ~2 kW meant the
+        # value could not move for three minutes even when polled often.
+        # (History: precision 2 was worse still - 0.01 MWh = 10 kWh steps -
+        # which is what starved the daily/yearly meters before 2026-07-22.)
+        precision: 6
+        data_type: uint32
+        nan_value: 4294967295
+        min_value: 0
+        device_class: energy
+      - name: PV1 AC Voltage
+        unique_id: pv1_ac_voltage
+        scan_interval: 60
+        unit_of_measurement: V
+        slave: 3
+        address: 30783
+        input_type: input
+        scale: 0.01
+        precision: 2
+        data_type: int32
+        min_value: 0
+        device_class: voltage
+        state_class: measurement
+      - name: PV1 AC Frequency
+        unique_id: pv1_ac_frequency
+        scan_interval: 60
+        unit_of_measurement: Hz
+        slave: 3
+        address: 30803
+        input_type: input
+        scale: 0.01
+        precision: 2
+        data_type: int32
+        min_value: 0
+        device_class: frequency
+        state_class: measurement
+      - name: PV1 DC Voltage 1
+        unique_id: pv1_dc_voltage_1
+        scan_interval: 60
+        unit_of_measurement: V
+        slave: 3
+        address: 30771
+        input_type: input
+        scale: 0.01
+        precision: 1
+        data_type: int32
+        min_value: 0
+        device_class: voltage
+        state_class: measurement
+      - name: PV1 DC Current 1
+        unique_id: pv1_dc_current_1
+        scan_interval: 60
+        unit_of_measurement: A
+        slave: 3
+        address: 30769
+        input_type: input
+        scale: 0.001
+        precision: 2
+        data_type: int32
+        min_value: 0
+        device_class: current
+        state_class: measurement
+      - name: PV1 DC Power 1
+        unique_id: pv1_dc_power_1
+        scan_interval: 15
+        unit_of_measurement: W
+        slave: 3
+        address: 30773
+        input_type: input
+        data_type: int32
+        min_value: 0
+        device_class: power
+        state_class: measurement
+      - name: PV1 DC Voltage 2
+        unique_id: pv1_dc_voltage_2
+        scan_interval: 60
+        unit_of_measurement: V
+        slave: 3
+        address: 30959
+        input_type: input
+        scale: 0.01
+        precision: 1
+        data_type: int32
+        min_value: 0
+        device_class: voltage
+        state_class: measurement
+      - name: PV1 DC Current 2
+        unique_id: pv1_dc_current_2
+        scan_interval: 60
+        unit_of_measurement: A
+        slave: 3
+        address: 30957
+        input_type: input
+        scale: 0.001
+        precision: 2
+        data_type: int32
+        min_value: 0
+        device_class: current
+        state_class: measurement
+      - name: PV1 DC Power 2
+        unique_id: pv1_dc_power_2
+        scan_interval: 15
+        unit_of_measurement: W
+        slave: 3
+        address: 30961
+        input_type: input
+        data_type: int32
+        min_value: 0
+        device_class: power
+        state_class: measurement
+      - name: PV1 temperature
+        unique_id: pv1_temperature
+        scan_interval: 300
+        unit_of_measurement: °C
+        slave: 3
+        address: 30953
+        input_type: input
+        scale: 0.1
+        precision: 1
+        data_type: int32
+        min_value: 0
+        device_class: temperature
+        state_class: measurement
+      - name: PV1 isolatieweerstand
+        unique_id: pv1_isolatieweerstand
+        scan_interval: 300
+        unit_of_measurement: Ohm
+        slave: 3
+        address: 30225
+        input_type: input
+        scale: 0.001
+        precision: 0
+        data_type: int32
+        min_value: 0
+        ##        device_class: resistance
+        state_class: measurement
+      - name: PV1 aardlekkage
+        unique_id: pv1_aardlekkage
+        scan_interval: 300
+        unit_of_measurement: A
+        slave: 3
+        address: 31247
+        input_type: input
+        scale: 0.001
+        precision: 3
+        data_type: int32
+        min_value: 0
+        device_class: current
+        state_class: measurement
+      - name: PV1 status
+        unique_id: pv1_status
+        scan_interval: 300
+        slave: 3
+        address: 30201
+        data_type: int32
+      - name: PV1 grid
+        unique_id: pv1_grid
+        scan_interval: 300
+        slave: 3
+        address: 30217
+        data_type: uint32
+      - name: PV1 limit percent
+        unique_id: pv1_limit_percent
+        scan_interval: 60
+        unit_of_measurement: "%"
+        slave: 3
+        address: 41255
+        input_type: holding
+        data_type: int16
+        min_value: 0
+        scale: 0.01
+        precision: 0
+        state_class: measurement
+
+template:
+  # ---------------------------------------------------------------------------------------
+  # 2026-08-11: these three moved out of the legacy `sensor: - platform: template` format.
+  #
+  # They were the ONLY legacy-format template sensors left in this config, and they are
+  # exactly the ones that went unavailable while every modern one kept working -
+  # sensor.pv1_actual reads a live wattage, sensor.pv1_power does not exist to read it.
+  # That took the whole PV chain down with it: no pv1_power -> no pv_production_power
+  # (home_power.yaml gates on has_value of both PV powers) -> no pv_energy_integral ->
+  # no solar bars on the Grid / Home / Solar Energy chart.
+  #
+  # unique_id is unchanged on all three, so the entity registry keeps the existing
+  # entity_ids and their history - including sensor.pv1_energie_vandaag and
+  # sensor.pv1_grid_contactor, whose ids come from the old YAML keys rather than from
+  # the names below.
+  #
+  # The clamps are kept as they were. What is new is `availability`: an unreadable
+  # register now makes the sensor unavailable instead of reporting 0 W. A zero is a
+  # number, and the integration downstream books it as "the sun stopped" - the same
+  # trap the PV statistics rewrite of 2026-08-09 was cleaning up.
+  # ---------------------------------------------------------------------------------------
+  - sensor:
+      - name: "PV1 Power"
+        unique_id: pv1_power
+        unit_of_measurement: "W"
+        device_class: power
+        state_class: measurement
+        icon: mdi:flash
+        availability: "{{ has_value('sensor.pv1_actual') }}"
+        state: >-
+          {% set w = states('sensor.pv1_actual') | float(0) %}
+          {{ (0 if (w < 0 or w > 10000) else w) | round(0) | int }}
+
+      - name: "PV1 Energy Daily"
+        unique_id: pv1_energie_vandaag
+        unit_of_measurement: "kWh"
+        icon: mdi:weather-sunny
+        availability: "{{ has_value('sensor.pv1_daily') }}"
+        state: >-
+          {% set e = states('sensor.pv1_daily') | float(0) %}
+          {{ 0 if (e < 0 or e > 10000) else e }}
+
+      - name: "PV1 Grid relais"
+        unique_id: pv1_grid_connector
+        icon: mdi:connection
+        state: "{{ 'Closed' if is_state('sensor.pv1_grid', '51') else 'Open' }}"
+
+
+  - number:
+      - name: PV1 Power Limit Slider
+        unique_id: pv1_power_limit_slider
+        icon: mdi:tune-variant
+        unit_of_measurement: "%"
+        state: 100
+        set_value:
+          - service: modbus.write_register
+            data:
+              hub: PV1
+              address: 40016
+              slave: 3
+              value: "{{ value | int }}"
+        step: 1
+        min: 0
+        max: 100
+        optimistic: true
+
+  - sensor:
+      - name: "PV1 Inverter Status"
+        unique_id: pv1_inverter_status
+        state: >-
+          {% if is_state('sensor.pv1_status', '307') %}
+            OK
+          {% elif is_state('sensor.pv1_status', '303') %}
+            Off
+          {% elif is_state('sensor.pv1_status', '455') %}
+            Warning
+          {% elif is_state('sensor.pv1_status', '35') %}
+            Fault
+          {% else %}
+            Unknown
+          {% endif %}
+
+      # Lifetime yield of PV1 in kWh.
+      #
+      # THIS ENTITY MUST KEEP state_class - do not strip it. It is read by
+      # custom:energy-balance-card on the Home dashboard (Consumption From ->
+      # PV) and by the hourly PV1/PV2 statistics-graph, both of which query
+      # recorder/statistics_during_period with types ["change"]. Without a
+      # state_class there are no statistics rows and both cards go blank.
+      #
+      # 2026-08-09: the never-decrease guard was removed. It compared against
+      # `this.state`, which state-based template sensors do not restore, so
+      # every HA restart reset the reference to 0 and re-seeded the sensor from
+      # whatever was read at that instant; it also latched permanently onto any
+      # bad HIGH read until the next restart. Both directions surfaced in
+      # long-term statistics as phantom production (the -250 / +100 kWh days on
+      # the Solar chart). `> 0` in availability replaces it and masks the
+      # inverter wake-up 0-read: an unavailable sensor records nothing, which
+      # is what we want - unlike a guard, which records a wrong value and then
+      # keeps recording it.
+      #
+      # 2026-08-11: state_class restored after the strip above blanked those
+      # two cards. It is safe to record again for a reason that is worth
+      # spelling out: the daily/yearly PV meters no longer read this entity
+      # (they run off sensor.pv1_energy_integral in home_energy.yaml). So if a
+      # garbled modbus frame ever does step this counter, the blast radius is
+      # these two cards - it can no longer reach the YTD badge, which is how a
+      # ~3.6 MWh year came to read 130 MWh.
+      - name: "PV1 Total Production"
+        unique_id: pv1_total_production
+        unit_of_measurement: "kWh"
+        device_class: energy
+        state_class: total_increasing
+        availability: >
+          {{ (states('sensor.pv1_total') | float(0)) > 0 }}
+        state: >
+          {# pv1_total is in MWh (register 30529 in Wh, scale 0.000001);
+             convert to kWh here so the value matches unit_of_measurement.
+             2026-07-22: this fixes the yearly/daily PV meters undercounting
+             by a factor 1000 (they were fed MWh numbers labeled kWh).
+             2026-08-11: round(1) -> round(6). round(1) quantised this sensor
+             to 0.1 kWh and silently threw away the register precision, so
+             raising precision to 6 upstream had no visible effect - the PV
+             figure on the energy balance card still moved in 0.1 kWh jumps.
+             The register counts whole Wh, so 0.001 kWh (= 1 Wh) is its true
+             resolution and digits 4-6 will always read zero. round(6) is used
+             rather than round(3) so this template imposes no floor of its own,
+             while still trimming float noise from the MWh -> kWh multiply
+             (15.123456 * 1000 = 15123.456000000002 in IEEE754). #}
+          {{ (states('sensor.pv1_total') | float(0) * 1000) | round(6) }}

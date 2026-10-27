@@ -1,0 +1,654 @@
+views:
+  - badges: []
+    cards: []
+    footer: {}
+    header:
+      badges_position: top
+      badges_wrap: scroll
+      card:
+        content: |
+          ### PV Limiter *({{ states('sensor.pv_limiter_version') }} )*
+        text_only: true
+        type: markdown
+      layout: center
+    icon: mdi:solar-power-variant
+    max_columns: 3
+    sections:
+      - cards:
+          - cards:
+              - grid_options:
+                  columns: 12
+                  rows: auto
+                heading: PV1
+                heading_style: title
+                icon: mdi:solar-power-variant
+                type: heading
+            type: vertical-stack
+          - animate: false
+            card_mod:
+              style: |
+                ha-card {
+                  {% set p = states('sensor.pv1_actual') | float(0) %}
+                  {% if p == 0 %}
+                    --card-mod-icon-color: #1f77b4;
+                  {% elif p <= 708 %}
+                    --card-mod-icon-color: #3B82F6;
+                  {% elif p <= 1417 %}
+                    --card-mod-icon-color: #F59E0B;
+                  {% elif p <= 2125 %}
+                    --card-mod-icon-color: #FCD34D;
+                  {% else %}
+                    --card-mod-icon-color: #ffeb3b;
+                  {% endif %}
+                }
+                .states,
+                .state,
+                .state__value {
+                  font-weight: 700 !important;
+                  color: #54CE4D !important;
+                }
+            color_thresholds:
+              - color: '#2ecc71'
+                value: 0
+              - color: '#f39c12'
+                value: 1500
+              - color: '#e74c3c'
+                value: 2800
+            entities:
+              - entity: sensor.pv1_actual
+                name: Actual
+              - aggregate_func: max
+                entity: sensor.pv1_power_max
+                name: Max
+                show_graph: false
+                show_state: false
+              - entity: sensor.pv1_daily
+                name: Yield
+                secondary_info: last-changed
+                show_graph: false
+                show_state: true
+            font_size: 80
+            grid_options:
+              columns: 12
+            hour24: true
+            hours_to_show: 12
+            icon: mdi:sun-wireless
+            line_width: 2
+            name: Sunny Boy 1
+            points_per_hour: 60
+            show:
+              extrema: true
+              icon: true
+              labels: false
+              legend: true
+              points: hover
+              state: true
+            smoothing: true
+            type: custom:mini-graph-card
+            update_interval: 60
+          - entity: sensor.pv1_actual
+            grid_options:
+              columns: 4
+              rows: auto
+            max: 3000
+            min: 0
+            name: Actual
+            needle: false
+            severity:
+              green: 1
+              red: 0
+              yellow: 0
+            type: gauge
+          - entity: sensor.pv1_daily
+            grid_options:
+              columns: 4
+              rows: auto
+            max: 20
+            name: Day
+            needle: false
+            severity:
+              green: 0.01
+              red: 0
+              yellow: 0
+            type: gauge
+            unit: kWh
+          - card_mod:
+              style: >-
+                .states { font-size: 28px !important; } .state__value {
+                font-size: 28px !important; }
+            decimals: 2
+            entity: sensor.pv1_total
+            grid_options:
+              columns: 4
+              rows: auto
+            max: 35
+            name: Total
+            needle: false
+            severity:
+              green: 1
+              red: 0
+              yellow: 0
+            type: gauge
+            unit: MWh
+          - entities:
+              - entity: sensor.pv_limiter_pv1_percentage
+                icon: mdi:solar-power
+                name: PV1 RTE
+              - entity: number.pv1_power_limit_slider
+                name: PV1 Output
+                secondary_info: last-changed
+              - entity: sensor.pv1_inverter_status
+                icon: mdi:list-status
+                name: PV1 Inverter Status
+              - entity: sensor.pv1_temperature
+                name: PV1 Temperature
+              - entity: sensor.pv1_dc_power_1
+                name: PV1 DC Power
+              - entity: sensor.pv1_ac_voltage
+                name: PV1 Voltage
+            type: entities
+        type: grid
+      - cards:
+          - cards:
+              - grid_options:
+                  columns: 12
+                  rows: auto
+                heading: PV2
+                heading_style: title
+                icon: mdi:solar-power-variant
+                type: heading
+            type: vertical-stack
+          - animate: false
+            card_mod:
+              style: |
+                ha-card {
+                  {% set p = states('sensor.pv2_actual') | float(0) %}
+                  {% if p == 0 %}
+                    --card-mod-icon-color: #1f77b4;
+                  {% elif p <= 708 %}
+                    --card-mod-icon-color: #3B82F6;
+                  {% elif p <= 1417 %}
+                    --card-mod-icon-color: #F59E0B;
+                  {% elif p <= 2125 %}
+                    --card-mod-icon-color: #FCD34D;
+                  {% else %}
+                    --card-mod-icon-color: #ffeb3b;
+                  {% endif %}
+                }
+                .states,
+                .state,
+                .state__value {
+                  font-weight: 700 !important;
+                  color: #54CE4D !important;
+                }
+            color_thresholds:
+              - color: '#2ecc71'
+                value: 0
+              - color: '#f39c12'
+                value: 1500
+              - color: '#e74c3c'
+                value: 2800
+            entities:
+              - entity: sensor.pv2_actual
+                name: Actual
+              - aggregate_func: max
+                entity: sensor.pv2_power_max
+                name: Max
+                show_graph: false
+                show_state: false
+              - entity: sensor.pv2_daily
+                name: Yield
+                secondary_info: last-changed
+                show_graph: false
+                show_state: true
+            font_size: 80
+            grid_options:
+              columns: 12
+            hour24: true
+            hours_to_show: 12
+            icon: mdi:sun-wireless
+            line_width: 2
+            name: Sunny Boy 2
+            points_per_hour: 60
+            show:
+              extrema: true
+              icon: true
+              labels: false
+              legend: true
+              points: hover
+              state: true
+            smoothing: true
+            type: custom:mini-graph-card
+            update_interval: 60
+          - entity: sensor.pv2_actual
+            grid_options:
+              columns: 4
+              rows: auto
+            max: 3000
+            min: 0
+            name: Actual
+            needle: false
+            severity:
+              green: 1
+              red: 0
+              yellow: 0
+            type: gauge
+          - entity: sensor.pv2_daily
+            grid_options:
+              columns: 4
+              rows: auto
+            max: 20
+            name: Day
+            needle: false
+            severity:
+              green: 0.01
+              red: 0
+              yellow: 0
+            type: gauge
+            unit: kWh
+          - card_mod:
+              style: >-
+                .states { font-size: 28px !important; } .state__value {
+                font-size: 28px !important; }
+            decimals: 2
+            entity: sensor.pv2_total
+            grid_options:
+              columns: 4
+              rows: auto
+            max: 35
+            name: Total
+            needle: false
+            severity:
+              green: 1
+              red: 0
+              yellow: 0
+            type: gauge
+            unit: MWh
+          - entities:
+              - entity: sensor.pv_limiter_pv2_percentage
+                icon: mdi:solar-power
+                name: PV2 RTE
+              - entity: number.pv2_power_limit_slider
+                name: PV2 Output
+                secondary_info: last-changed
+              - entity: sensor.pv2_inverter_status
+                icon: mdi:list-status
+                name: PV2 Inverter Status
+                secondary_info: none
+              - entity: sensor.pv2_temperature
+                name: PV2 Temperature
+              - entity: sensor.pv2_dc_power_1
+                name: PV2 DC Power
+              - entity: sensor.pv2_ac_voltage
+                name: PV2 Voltage
+            type: entities
+        type: grid
+        visibility:
+          - condition: state
+            entity: sensor.pv_inverters
+            state: '2'
+      - cards:
+          - grid_options:
+              columns: 12
+              rows: auto
+            heading: Total
+            heading_style: title
+            icon: mdi:solar-power-variant
+            type: heading
+          - animate: false
+            card_mod:
+              style: |
+                ha-card {
+                  {% set p = states('sensor.pv_limiter_power') | float(0) %}
+                  {% if p == 0 %}
+                    --card-mod-icon-color: #1f77b4;
+                  {% elif p <= 1416 %}
+                    --card-mod-icon-color: #3B82F6;
+                  {% elif p <= 2834 %}
+                    --card-mod-icon-color: #F59E0B;
+                  {% elif p <= 4250 %}
+                    --card-mod-icon-color: #FCD34D;
+                  {% else %}
+                    --card-mod-icon-color: #ffeb3b;
+                  {% endif %}
+                }
+                .states,
+                .state,
+                .state__value {
+                  font-weight: 700 !important;
+                  color: #54CE4D !important;
+                }
+            color_thresholds:
+              - color: '#2ecc71'
+                value: 0
+              - color: '#f39c12'
+                value: 1500
+              - color: '#e74c3c'
+                value: 2800
+            entities:
+              - entity: sensor.pv_limiter_power
+                name: Actual
+              - aggregate_func: max
+                entity: sensor.pv_limiter_power_max
+                name: Max
+                show_graph: false
+                show_state: false
+              - entity: sensor.pv_limiter_daily_yield
+                name: Yield
+                secondary_info: last-changed
+                show_graph: false
+                show_state: true
+            font_size: 80
+            grid_options:
+              columns: 12
+            hour24: true
+            hours_to_show: 12
+            icon: mdi:sun-wireless
+            line_width: 2
+            name: Total Solar Power
+            points_per_hour: 60
+            show:
+              extrema: true
+              icon: true
+              labels: false
+              legend: true
+              points: hover
+              state: true
+            smoothing: true
+            type: custom:mini-graph-card
+            update_interval: 60
+          - entity: sensor.pv_limiter_power
+            grid_options:
+              columns: 4
+              rows: auto
+            max: 6000
+            min: 0
+            name: Actual
+            needle: false
+            severity:
+              green: 1
+              red: 0
+              yellow: 0
+            type: gauge
+          - entity: sensor.pv_limiter_daily_yield
+            grid_options:
+              columns: 4
+              rows: auto
+            max: 40
+            name: Day
+            needle: false
+            severity:
+              green: 0.00001
+              red: 0
+              yellow: 0
+            type: gauge
+            unit: kWh
+          - card_mod:
+              style: >-
+                .states { font-size: 28px !important; } .state__value {
+                font-size: 28px !important; }
+            decimals: 2
+            entity: sensor.pv_limiter_total_yield
+            grid_options:
+              columns: 4
+              rows: auto
+            max: 35
+            name: Total
+            needle: false
+            severity:
+              green: 1
+              red: 0
+              yellow: 0
+            type: gauge
+            unit: MWh
+          - entities:
+              - entity: sensor.pv_limiter_percentage
+                icon: mdi:solar-power
+                name: Total RTE
+              - entity: sensor.pv_limiter_slider
+                icon: mdi:tune-variant
+                name: PV Output
+                secondary_info: last-updated
+              - entity: sensor.p1_meter_power
+                name: Grid Import
+              - entity: sensor.combined_battery_power
+                name: Battery Charge
+              - entity: sensor.combined_battery_time_remaining
+                name: Charge/Discharge time
+              - entity: sensor.combined_battery_soc
+                icon: mdi:battery-charging-medium
+                name: Battery SOC
+            grid_options:
+              rows: auto
+            type: entities
+        type: grid
+      - cards:
+          - cards:
+              - content: '**<font color=white>PV Limiter</font>**'
+                text_only: true
+                type: markdown
+              - content: |-
+                  <font color=grey>Enable PV Limiter to control PV output.
+                  Excluding tax/network/transport cost.</font>
+                text_only: true
+                type: markdown
+            grid_options:
+              columns: 12
+              rows: auto
+            type: vertical-stack
+          - cards:
+              - type: tile
+                grid_options:
+                  columns: 12
+                  rows: 1
+                entity: input_boolean.pv_limiter
+                name: PV Limiter
+                icon: mdi:solar-power
+                hide_state: true
+                vertical: false
+                tap_action:
+                  action: toggle
+                icon_tap_action:
+                  action: toggle
+                features_position: bottom
+              - type: tile
+                grid_options:
+                  columns: 12
+                  rows: 1
+                entity: input_boolean.pv_logging
+                name: Show logging
+                icon: mdi:bug-outline
+                hide_state: true
+                vertical: false
+                tap_action:
+                  action: toggle
+                icon_tap_action:
+                  action: toggle
+                features_position: bottom
+            grid_options:
+              columns: full
+              rows: auto
+            type: vertical-stack
+        type: grid
+      - cards:
+          - cards:
+              - content: '**<font color=white>Limiter between tresholds</font>**'
+                text_only: true
+                type: markdown
+              - content: >-
+                  <font color=grey>Step Size: Increase/decrease PV
+                  output.</br>Dead Band: P1 bandwidth.</font>
+                text_only: true
+                type: markdown
+              - entity: input_number.pv_step_size
+                features:
+                  - style: buttons
+                    type: numeric-input
+                features_position: inline
+                hide_state: true
+                name: Step Size
+                type: tile
+                vertical: false
+              - entity: input_number.pv_p1_deadband
+                features:
+                  - style: buttons
+                    type: numeric-input
+                features_position: inline
+                hide_state: true
+                icon: mdi:numeric
+                name: Dead Band
+                type: tile
+                vertical: false
+            grid_options:
+              columns: 12
+              rows: auto
+            type: vertical-stack
+        column_span: 1
+        type: grid
+      - cards:
+          - cards:
+              - content: '**<font color=white>Tresholds</font>**'
+                text_only: true
+                type: markdown
+              - content: >-
+                  <font color=grey>Injection price < 0 grid injection =
+                  0.</br>Total price + Extra cost < 0 disable PV ouput and
+                  charge.</font>
+                text_only: true
+                type: markdown
+              - type: tile
+                grid_options:
+                  columns: 12
+                  rows: 1
+                entity: sensor.epex_injectie_now
+                name: Injection price
+                icon: mdi:transmission-tower-import
+                color: green
+                vertical: false
+                features_position: bottom
+                card_mod:
+                  style: |
+                    ha-card {
+                      {% if states('sensor.epex_injectie_now') | float(0) < 0 %}
+                        border: 2px solid orange;
+                      {% endif %}
+                    }
+              - type: tile
+                grid_options:
+                  columns: 12
+                  rows: 1
+                entity: sensor.epex_afname_total_extra
+                name: Total price + Extra cost
+                icon: mdi:transmission-tower-export
+                color: purple
+                vertical: false
+                features_position: bottom
+                card_mod:
+                  style: |
+                    ha-card {
+                      {% if states('sensor.epex_afname_total_extra') | float(0) < 0 %}
+                        border: 2px solid orange;
+                      {% endif %}
+                    }
+            grid_options:
+              columns: full
+              rows: auto
+            type: vertical-stack
+        type: grid
+      - type: grid
+        cards:
+          - type: custom:helios-card
+            cache-id: cmsjyihpoac8twg
+            grid_options:
+              rows: auto
+              columns: full
+            power-unit: W
+        column_span: 3
+      - cards:
+          - type: history-graph
+            grid_options:
+              columns: 24
+              rows: auto
+            entities:
+              - entity: sensor.p1_meter_power
+                name: Grid power
+              - entity: sensor.pv_limiter_power
+                name: Solar power
+              - entity: sensor.combined_battery_power
+                name: Battery power
+            title: Power history
+            hours_to_show: 4
+          - date_format: DD/MM
+            device_id: 1da01c65b0aeb0673a227763def4a064
+            forecast_entities:
+              - sensor.solcast_pv_forecast_forecast_today
+              - sensor.solcast_pv_forecast_forecast_tomorrow
+              - sensor.solcast_pv_forecast_forecast_day_3
+              - sensor.solcast_pv_forecast_forecast_day_4
+              - sensor.solcast_pv_forecast_forecast_day_5
+              - sensor.solcast_pv_forecast_forecast_day_6
+              - sensor.solcast_pv_forecast_forecast_day_7
+            grid_options:
+              columns: 12
+              rows: auto
+            integration_type: solcast
+            inverter_max_kw: 7.2
+            live_power_entity: sensor.pv_limiter_power
+            show_header: true
+            solar_max_kwp: 5.6
+            time_format: 24h
+            today_actual_entity: sensor.pv_limiter_daily_yield
+            type: custom:solar-forecast-card
+        column_span: 3
+        type: grid
+      - cards:
+          - grid_options:
+              columns: 24
+              rows: auto
+            heading: 📋 Explanations (last 7 items)
+            heading_style: subtitle
+            icon: mdi:list-box-outline
+            type: heading
+            visibility:
+              - condition: state
+                entity: input_boolean.pv_logging
+                state: 'on'
+          - content: >-
+              ### PV Limiter ({{ states('sensor.pv_limiter_version') }})
+
+              {% set lr = states('sensor.pv_limiter_last_run') %}
+
+              {%- if is_state('input_boolean.pv_limiter', 'off') %}
+
+              ⏸️ Disabled{% if lr not in ['unknown','unavailable'] %} · last run
+              {{ as_local(as_datetime(lr)).strftime('%d-%m %H:%M') }}{% endif %}
+
+              {%- elif lr in ['unknown','unavailable'] %}
+
+              🔴 Last run: unknown (heartbeat not received)
+
+              {%- else %}
+
+              {%- set age = ((now() - as_datetime(lr)).total_seconds() / 60) |
+              round(0) | int %}
+
+              {{ '🟢' if age <= 10 else '🔴' }} Last run: {{
+              as_local(as_datetime(lr)).strftime('%d-%m %H:%M') }} ({{ age }}
+              min ago)
+
+              {%- endif %}
+
+
+              {{ state_attr('sensor.pv_limiter_log', 'markdown') }}
+            grid_options:
+              columns: 24
+              rows: auto
+            type: markdown
+            visibility:
+              - condition: state
+                entity: input_boolean.pv_logging
+                state: 'on'
+        column_span: 2
+        type: grid
+    title: PV Limiter
+    type: sections
